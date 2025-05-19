@@ -1,5 +1,6 @@
 package com.gab.authservice.service;
 
+import com.gab.authservice.dto.LoginRequest;
 import com.gab.authservice.dto.SignupRequest;
 import com.gab.authservice.entity.User;
 import com.gab.authservice.repository.UserRepository;
@@ -28,5 +29,17 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+    }
+
+    public String login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Invalid password");
+        }   
+
+        // We'll just return a dummy token for now
+        return "mock-jwt-token-for-" + user.getEmail();
     }
 }

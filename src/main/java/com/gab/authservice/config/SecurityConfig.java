@@ -20,7 +20,7 @@ public class SecurityConfig {
         return http
             .csrf(csrf -> csrf.disable()) // disable CSRF (safe for Postman/JSON-based APIs)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/signup").permitAll() // allow only /auth/signup
+                .requestMatchers("/auth/signup", "/auth/login").permitAll() // allow only /auth/signup
                 .anyRequest().authenticated()               // block everything else
             )
             .formLogin(form -> form.disable())             // disable login page

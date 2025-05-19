@@ -6,6 +6,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import com.gab.authservice.dto.LoginRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -19,4 +22,11 @@ public class AuthController {
         authService.signup(request);
         return ResponseEntity.ok("User registered successfully");
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<String> postMethodName(@RequestBody LoginRequest request) {
+        String token = authService.login(request);
+        return ResponseEntity.ok(token);
+    }
+    
 }
