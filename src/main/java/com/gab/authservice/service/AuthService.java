@@ -16,6 +16,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public void signup(SignupRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -39,7 +40,6 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }   
 
-        // We'll just return a dummy token for now
-        return "mock-jwt-token-for-" + user.getEmail();
+        return jwtService.generateToken(user.getEmail());
     }
 }

@@ -11,6 +11,7 @@ public class AuthServiceApplication {
 		Dotenv dotenv = Dotenv.configure().load(); // load .env file
 		System.setProperty("DB_USERNAME", dotenv.get("DB_USERNAME"));
 		System.setProperty("DB_PASSWORD", dotenv.get("DB_PASSWORD"));
+		System.setProperty("JWT_SECRET", dotenv.get("JWT_SECRET"));
 		
 		SpringApplication.run(AuthServiceApplication.class, args);
 	}
