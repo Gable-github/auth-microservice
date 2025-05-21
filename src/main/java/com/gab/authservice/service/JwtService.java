@@ -3,6 +3,8 @@ package com.gab.authservice.service;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -10,13 +12,11 @@ import java.security.Key;
 import java.util.Date;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
+    @Value("${jwt.secret}")
     private final String jwtSecret;
-
-    public JwtService(@Value("${jwt.secret}") String jwtSecret) {
-        this.jwtSecret = jwtSecret;
-    }
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
