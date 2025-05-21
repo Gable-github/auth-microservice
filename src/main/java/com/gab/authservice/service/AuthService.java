@@ -2,6 +2,7 @@ package com.gab.authservice.service;
 
 import com.gab.authservice.dto.LoginRequest;
 import com.gab.authservice.dto.SignupRequest;
+import com.gab.authservice.entity.Role;
 import com.gab.authservice.entity.User;
 import com.gab.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class AuthService {
                 .id(UUID.randomUUID())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER)
                 .build();
 
         userRepository.save(user);
@@ -40,6 +42,6 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }   
 
-        return jwtService.generateToken(user.getEmail());
+        return jwtService.generateToken(user);
     }
 }
