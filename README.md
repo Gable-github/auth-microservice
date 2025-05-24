@@ -149,10 +149,32 @@ The service uses PostgreSQL. Make sure to:
 
 ## Testing
 
-Run the test suite:
+This project uses a comprehensive testing strategy:
+
+- **Unit Tests**: Service layer logic is tested in isolation using JUnit and Mockito. Dependencies like repositories, password encoders, and JWT services are mocked to ensure business logic is correct and robust.
+- **Integration Tests**: Controller endpoints are tested using Spring Boot's `@SpringBootTest` and `MockMvc`, with a real PostgreSQL database spun up by Testcontainers. This ensures the full stack (controller, service, repository, and database) works as expected.
+- **JWT Validation**: Integration tests verify that login returns a valid JWT token (correct format, not null).
+
+### Running the Test Suite
+
 ```bash
 ./mvnw test
 ```
+
+- Unit tests run by default.
+- Integration tests automatically start a temporary PostgreSQL container (no need for a running local DB).
+
+### What is Covered
+- User signup (success and error cases)
+- User login (success and error cases)
+- JWT token generation and format
+- Full controller-to-database integration
+
+### Example: Integration Test
+- Simulates real HTTP requests to `/auth/signup` and `/auth/login`
+- Verifies correct responses and JWT format
+
+For more details, see the test files in `src/test/java/com/gab/authservice/service/` and `src/test/java/com/gab/authservice/controller/`.
 
 ## Contributing
 
