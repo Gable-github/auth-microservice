@@ -1,0 +1,8 @@
+.git/         # Ignore Git repository (history, branches, etc.)
+.env          # Ignore secret environment variables
+*.md          # Ignore all markdown files except README.md (for now)
+!README.md    # But DO include README.md (for documentation in the image, if you want)
+.vscode/      # Ignore VSCode IDE config
+.mvn/         # Ignore Maven wrapper files (not needed for running the built app)
+mvnw          # Ignore Maven wrapper script (also not needed for running the built app)
+mvnw.cmd      # Ignore Maven wrapper script for Windows (not needed for running the built app)
