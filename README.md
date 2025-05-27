@@ -173,17 +173,3 @@ This project uses a comprehensive testing strategy:
 ### Example: Integration Test
 - Simulates real HTTP requests to `/auth/signup` and `/auth/login`
 - Verifies correct responses and JWT format
-
-For more details, see the test files in `src/test/java/com/gab/authservice/service/` and `src/test/java/com/gab/authservice/controller/`.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 
