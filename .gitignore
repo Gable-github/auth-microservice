@@ -34,3 +34,8 @@ build/
 
 .env
 .DS_Store
+
+# Keys
+src/main/resources/keys/*.pem
+src/main/resources/keys/private.pem
+src/main/resources/keys/public.pem
