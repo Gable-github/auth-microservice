@@ -5,12 +5,15 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-
 import com.gab.authservice.entity.User;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.IOException;
 import java.security.KeyFactory;
@@ -27,45 +30,87 @@ import java.util.function.Function;
 @Service
 @RequiredArgsConstructor
 public class JwtService {
-
+    
+    private final Environment environment;
+    
+    // Local development configuration
     @Value("${jwt.private-key-path}")
     private String privateKeyPath;
-
+    
     @Value("${jwt.public-key-path}")
     private String publicKeyPath;
+    
+    // AWS configuration
+    private final String secretName = "auth-microservice/jwt/keys";
+    private final Region region = Region.of("us-east-1");
+    private SecretsManagerClient client;
 
-    // Reads and loads the private key for signing JWT tokens
+    private boolean isLocalProfile() {
+        return environment.matchesProfiles("local");
+    }
+
+    private SecretsManagerClient getSecretsManagerClient() {
+        if (client == null && !isLocalProfile()) {
+            client = SecretsManagerClient.builder()
+                    .region(region)
+                    .build();
+        }
+        return client;
+    }
+
+    private String getSecretFromAWS() {
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder()
+                .secretId(secretName)
+                .build();
+
+        try {
+            GetSecretValueResponse getSecretValueResponse = getSecretsManagerClient().getSecretValue(getSecretValueRequest);
+            return getSecretValueResponse.secretString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch JWT keys from AWS Secrets Manager", e);
+        }
+    }
+
     private RSAPrivateKey getPrivateKey() {
         try {
-            // Read the private key file and clean it up by:
-            // 1. Reading the file content as a string
-            // 2. Removing the PEM header and footer
-            // 3. Removing all whitespace to get clean Base64
-            String privateKeyPEM = new String(new ClassPathResource(privateKeyPath).getInputStream().readAllBytes())
-                    .replace("-----BEGIN PRIVATE KEY-----", "")
+            String keyContent;
+            
+            if (isLocalProfile()) {
+                // Local development: Read from classpath
+                keyContent = new String(new ClassPathResource(privateKeyPath).getInputStream().readAllBytes());
+                System.out.println("Using local private key for JWT signing");
+            } else {
+                // Production: Get from AWS Secrets Manager
+                keyContent = getSecretFromAWS();
+                System.out.println("Using AWS Secrets Manager private key for JWT signing");
+            }
+            
+            String privateKeyPEM = keyContent.replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
                     .replaceAll("\\s", "");
 
             byte[] encoded = Base64.getDecoder().decode(privateKeyPEM);
-            
-            // Get a factory that can create RSA keys
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            
-            // Create a specification for a private key in PKCS#8 format
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-            
-            // Generate and return the actual RSA private key object
             return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Error loading private key", e);
         }
     }
 
-    // Reads and loads the public key for verifying JWT tokens
     private RSAPublicKey getPublicKey() {
         try {
-            String publicKeyPEM = new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes())
-                    .replace("-----BEGIN PUBLIC KEY-----", "")
+            String keyContent;
+            
+            if (isLocalProfile()) {
+                // Local development: Read from classpath
+                keyContent = new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
+            } else {
+                // Production: Get from AWS Secrets Manager
+                keyContent = getSecretFromAWS();
+            }
+            
+            String publicKeyPEM = keyContent.replace("-----BEGIN PUBLIC KEY-----", "")
                     .replace("-----END PUBLIC KEY-----", "")
                     .replaceAll("\\s", "");
 
@@ -80,7 +125,11 @@ public class JwtService {
 
     public String getPublicKeyPEM() {
         try {
-            return new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
+            if (isLocalProfile()) {
+                return new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
+            } else {
+                return getSecretFromAWS();
+            }
         } catch (IOException e) {
             throw new RuntimeException("Error reading public key", e);
         }
