@@ -34,12 +34,50 @@ A robust authentication and authorization microservice built with Spring Boot, p
 
 ## Environment Setup
 
-Create a `.env` file in the root directory with the following variables:
+This application supports **profile-based configuration** for different environments:
+
+### Local Development (Profile: `local`)
+
+For local development, create a `.env` file in the root directory:
 
 ```env
-DB_USERNAME=your_db_username
-DB_PASSWORD=your_db_password
-JWT_SECRET=your_jwt_secret
+DB_USERNAME=your_local_db_username
+DB_PASSWORD=your_local_db_password
+JWT_SECRET=your_local_jwt_secret
+```
+
+**Run locally:**
+```bash
+# Uses .env file and local PostgreSQL
+./mvnw spring-boot:run -Dspring.profiles.active=local
+```
+
+### Production (Profile: `prod` - Default)
+
+Production uses **AWS Secrets Manager** for secure configuration management:
+- Database credentials from AWS Secrets Manager
+- JWT RSA keys from AWS Secrets Manager  
+- No `.env` file needed
+
+**Key Benefits:**
+- Automatic secret rotation
+- Audit logging
+- Cross-service secret sharing
+- Enhanced security
+
+### Docker Development
+
+The docker-compose setup uses production profile with AWS integration:
+
+```bash
+# Make sure these environment variables are set:
+export AWS_ACCESS_KEY_ID=your_aws_key
+export AWS_SECRET_ACCESS_KEY=your_aws_secret
+export DB_USERNAME=your_db_username
+export DB_PASSWORD=your_db_password
+
+# Run with Docker
+docker-compose up
 ```
 
 ## Docker Support
