@@ -1,19 +1,34 @@
 package com.gab.authservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gab.authservice.config.TestConfig;
 import com.gab.authservice.dto.LoginRequest;
 import com.gab.authservice.dto.SignupRequest;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,6 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 // Sets up MockMvc for HTTP endpoint testing
 @AutoConfigureMockMvc
+@Import(TestConfig.class)
+@ActiveProfiles("local")
 class AuthControllerIntegrationTest {
 
     // Spins up a real PostgreSQL container for the test
@@ -41,8 +58,34 @@ class AuthControllerIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("jwt.secret", () -> "test_jwt_secret_which_is_long_enough_123456");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+        registry.add("aws.secrets.enabled", () -> "false");
+    }
+
+    @BeforeAll
+    static void setup() throws NoSuchAlgorithmException, IOException {
+        // Create test keys directory
+        Path testKeysDir = Paths.get("src/test/resources/keys");
+        Files.createDirectories(testKeysDir);
+
+        // Generate RSA key pair
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        PrivateKey privateKey = keyPair.getPrivate();
+        PublicKey publicKey = keyPair.getPublic();
+
+        // Save private key
+        String privateKeyPEM = "-----BEGIN PRIVATE KEY-----\n" +
+                Base64.getEncoder().encodeToString(privateKey.getEncoded()) +
+                "\n-----END PRIVATE KEY-----";
+        Files.write(testKeysDir.resolve("private.pem"), privateKeyPEM.getBytes());
+
+        // Save public key
+        String publicKeyPEM = "-----BEGIN PUBLIC KEY-----\n" +
+                Base64.getEncoder().encodeToString(publicKey.getEncoded()) +
+                "\n-----END PUBLIC KEY-----";
+        Files.write(testKeysDir.resolve("public.pem"), publicKeyPEM.getBytes());
     }
 
     @Autowired

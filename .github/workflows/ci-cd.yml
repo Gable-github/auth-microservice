@@ -14,34 +14,34 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
           
+      - name: Generate test RSA keys
+        run: |
+          mkdir -p src/test/resources/keys
+          openssl genrsa -out src/test/resources/keys/private.pem 2048
+          openssl rsa -in src/test/resources/keys/private.pem -pubout -out src/test/resources/keys/public.pem
+          
       - name: Run tests
         run: ./mvnw test
+        env:
+          SPRING_PROFILES_ACTIVE: local
           
       - name: Build with Maven
-        run: ./mvnw clean package
+        run: ./mvnw clean package -DskipTests
         
-      - name: Build Docker image
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-        
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Push Docker image
+      - name: Build and push Docker image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -52,14 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
@@ -67,19 +67,26 @@ jobs:
           script: |
             cd ~/auth-microservice
             
-            # Set production environment variables
-            export GITHUB_REPOSITORY=${{ github.repository }}
-            export DB_USERNAME=${{ secrets.DB_USERNAME }}
-            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            # Log in to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Create secure .env file for production
+            cat > .env.prod << EOF
+            GITHUB_REPOSITORY=${{ github.repository }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            SPRING_PROFILES_ACTIVE=prod
+            EOF
             
             # Pull latest images and deploy with production profile
-            docker-compose pull
-            docker-compose down
-            docker-compose up -d
+            docker-compose --env-file .env.prod pull
+            docker-compose --env-file .env.prod down
+            docker-compose --env-file .env.prod up -d
+            
+            # Clean up sensitive file
+            rm -f .env.prod
             
             # Verify deployment
-            sleep 10
+            sleep 30
             curl -f http://localhost:8080/actuator/health || exit 1
             echo "Deployment successful" 
