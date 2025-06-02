@@ -37,5 +37,4 @@ build/
 
 # Keys
 src/main/resources/keys/*.pem
-src/main/resources/keys/private.pem
-src/main/resources/keys/public.pem
+src/test/resources/keys/*.pem
