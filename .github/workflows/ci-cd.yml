@@ -71,7 +71,9 @@ jobs:
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             SPRING_PROFILES_ACTIVE=prod
             EOF
-            
+
+            export GITHUB_REPOSITORY=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+
             # Pull latest images and deploy with production profile
             docker-compose --env-file .env.prod pull
             docker-compose --env-file .env.prod down

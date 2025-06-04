@@ -1,6 +1,6 @@
 services:
   auth-service:
-    image: ghcr.io/${GITHUB_REPOSITORY:-your-username/authservice}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY}:latest
     ports:
       - "8080:8080"
     environment:
