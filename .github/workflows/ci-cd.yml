@@ -66,13 +66,11 @@ jobs:
             
             # Create secure .env file for production
             cat > .env.prod << EOF
-            GITHUB_REPOSITORY=${{ github.repository }}
+            GITHUB_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
             DB_USERNAME=${{ secrets.DB_USERNAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             SPRING_PROFILES_ACTIVE=prod
             EOF
-
-            export GITHUB_REPOSITORY=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
 
             # Pull latest images and deploy with production profile
             docker-compose --env-file .env.prod pull
