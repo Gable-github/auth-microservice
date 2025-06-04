@@ -14,6 +14,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 
 import java.io.IOException;
 import java.security.KeyFactory;
@@ -128,7 +130,14 @@ public class JwtService {
             if (isLocalProfile()) {
                 return new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
             } else {
-                return getSecretFromAWS();
+                String secretJson = getSecretFromAWS();
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    Map<String, String> secretMap = mapper.readValue(secretJson, Map.class);
+                    return secretMap.get("public-key");
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to parse public key from AWS secret", e);
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException("Error reading public key", e);
