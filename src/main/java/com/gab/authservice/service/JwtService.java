@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.IOException;
 import java.security.KeyFactory;
@@ -73,24 +74,32 @@ public class JwtService {
         }
     }
 
+    // Helper to parse AWS secret JSON and extract keys
+    private Map<String, String> getAwsKeyMap() {
+        String secretJson = getSecretFromAWS();
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(secretJson, new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse keys from AWS secret", e);
+        }
+    }
+
     private RSAPrivateKey getPrivateKey() {
         try {
             String keyContent;
-            
             if (isLocalProfile()) {
                 // Local development: Read from classpath
                 keyContent = new String(new ClassPathResource(privateKeyPath).getInputStream().readAllBytes());
                 System.out.println("Using local private key for JWT signing");
             } else {
-                // Production: Get from AWS Secrets Manager
-                keyContent = getSecretFromAWS();
+                // Production: Get from AWS Secrets Manager (parse JSON and extract private-key)
+                keyContent = getAwsKeyMap().get("private-key");
                 System.out.println("Using AWS Secrets Manager private key for JWT signing");
             }
-            
             String privateKeyPEM = keyContent.replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
                     .replaceAll("\\s", "");
-
             byte[] encoded = Base64.getDecoder().decode(privateKeyPEM);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
@@ -100,22 +109,22 @@ public class JwtService {
         }
     }
 
+    /**
+     * Returns the public key as a Java RSAPublicKey object for internal cryptographic operations (e.g., JWT verification).
+     */
     private RSAPublicKey getPublicKey() {
         try {
             String keyContent;
-            
             if (isLocalProfile()) {
                 // Local development: Read from classpath
                 keyContent = new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
             } else {
-                // Production: Get from AWS Secrets Manager
-                keyContent = getSecretFromAWS();
+                // Production: Get from AWS Secrets Manager (parse JSON and extract public-key)
+                keyContent = getAwsKeyMap().get("public-key");
             }
-            
             String publicKeyPEM = keyContent.replace("-----BEGIN PUBLIC KEY-----", "")
                     .replace("-----END PUBLIC KEY-----", "")
                     .replaceAll("\\s", "");
-
             byte[] encoded = Base64.getDecoder().decode(publicKeyPEM);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
@@ -125,19 +134,15 @@ public class JwtService {
         }
     }
 
+    /**
+     * Returns the public key as a PEM-formatted string for sharing with clients (e.g., via /auth/public-key endpoint).
+     */
     public String getPublicKeyPEM() {
         try {
             if (isLocalProfile()) {
                 return new String(new ClassPathResource(publicKeyPath).getInputStream().readAllBytes());
             } else {
-                String secretJson = getSecretFromAWS();
-                try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    Map<String, String> secretMap = mapper.readValue(secretJson, Map.class);
-                    return secretMap.get("public-key");
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to parse public key from AWS secret", e);
-                }
+                return getAwsKeyMap().get("public-key");
             }
         } catch (IOException e) {
             throw new RuntimeException("Error reading public key", e);
