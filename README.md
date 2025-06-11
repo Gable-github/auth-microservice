@@ -1,15 +1,16 @@
-# Authentication Service
+# Authentication and Authorization Microservice
 
-A robust authentication and authorization microservice built with Spring Boot, providing secure user management and JWT-based authentication.
+A reusable authentication and authorization microservice built with Spring Boot.
+This microservice provides secure user management and JWT-based authentication.
 
 ## Features
 
 - User registration and login
 - JWT-based authentication
-- Secure password handling
-- PostgreSQL database integration
-- Environment-based configuration
-- Input validation
+- Secure password handling (RSA public/private key pair)
+- PostgreSQL database integration (containerized with Docker)
+- Environment-based configuration with profile support (local/prod) and secure secrets management
+- Input validation using Jakarta Validation (Bean Validation 3.0)
 - RESTful API design
 
 ## Technology Stack
@@ -18,13 +19,13 @@ A robust authentication and authorization microservice built with Spring Boot, p
 - Spring Boot 3.4.5
 - Spring Security
 - Spring Data JPA
-- PostgreSQL
-- JWT (JSON Web Tokens)
-- Maven
+- Jakarta Validation (Bean Validation 3.0)
 - Lombok
-- Hibernate Validator
+- Maven
+- JWT (JSON Web Tokens)
+- PostgreSQL
 
-## Prerequisites
+## Prerequisites (for local development)
 
 - Java 17 or higher
 - Maven
@@ -43,7 +44,7 @@ For local development, create a `.env` file in the root directory:
 ```env
 DB_USERNAME=your_local_db_username
 DB_PASSWORD=your_local_db_password
-JWT_SECRET=your_local_jwt_secret
+# Then generate RSA key pair in com/gab/authservice/resources/keys/private.pem and com/gab/authservice/resources/keys/public.pem
 ```
 
 **Run locally:**
@@ -52,44 +53,27 @@ JWT_SECRET=your_local_jwt_secret
 ./mvnw spring-boot:run -Dspring.profiles.active=local
 ```
 
-### Production (Profile: `prod` - Default)
-
-Production uses **AWS Secrets Manager** for secure configuration management:
-- Database credentials from AWS Secrets Manager
-- JWT RSA keys from AWS Secrets Manager  
-- No `.env` file needed
-
-**Key Benefits:**
-- Automatic secret rotation
-- Audit logging
-- Cross-service secret sharing
-- Enhanced security
-
-### Docker Development
-
-The docker-compose setup uses production profile with AWS integration:
-
-```bash
-# Make sure these environment variables are set:
-export AWS_ACCESS_KEY_ID=your_aws_key
-export AWS_SECRET_ACCESS_KEY=your_aws_secret
-export DB_USERNAME=your_db_username
-export DB_PASSWORD=your_db_password
-
-# Run with Docker
-docker-compose up
-```
-
-## Docker Support
-
-This project supports running in Docker containers for easy local development and deployment.
-
-- **.dockerignore** — Specifies files and directories to ignore when building the Docker image (to keep the image small and secure).
-- **Dockerfile** — Defines how to build the Docker image for your application (base image, copying files, installing dependencies, and startup command).
-- **docker-compose.yml** — Configures and runs multi-container applications, setting up services, environment variables, networking, and volumes for your containers.
 - **rebuild.sh** — Script to automate rebuilding the JAR, Docker image, and restarting containers for development.
 
-### Running with Docker
+
+### Production (Profile: `prod` - Default)
+
+CI/CD pipeline using GitHub Actions that:
+- Runs on every push to main branch
+- Builds and tests the application
+- Builds and pushes Docker image to GitHub Container Registry (GHCR) - you will have to use your own GHCR token (until i make this a saas for fun)
+- Deploys to EC2 instance using appleboy SSH action
+- Sets up production environment with AWS Secrets Manager for RSA keys
+- Verifies deployment health using Spring Boot Actuator endpoints
+
+Production uses **AWS Secrets Manager** for secure configuration management:
+- Database credentials from Github Actions Secrets
+- JWT RSA keys from AWS Secrets Manager  
+- No `.env` file stored in container or repo
+
+!!! [note] To check logs, you can `docker ps` and then `docker logs <container_id>` or `docker exec -it <container-name-or-id> /bin/bash (or /bin/sh)` if bash not installed
+
+### Running with Docker (local docker env)
 
 1. Build and run the containers:
    ```bash
@@ -167,21 +151,27 @@ src/main/java/com/gab/authservice/
 └── service/       # Business logic
 ```
 
+Store your own RSA keys in 
+```
+src/main/java/com/gab/resources/keys
+├── public.pem
+└── private.pem
+```
+
 ### Database Configuration
 The service uses PostgreSQL. Make sure to:
 1. Have PostgreSQL installed and running
 2. Create a database for the service
-3. Configure the database connection in your environment variables
+3. Configure the database connection in your environment variables (db password and username)
 
 ### Security Considerations
 
 #### JWT Token
-- Tokens are signed using the JWT_SECRET from environment variables
+- Tokens are signed using RSA private key (RS256 algorithm)
 - Tokens contain user information and expiration time
-- Always use HTTPS in production
 
 #### Password Security
-- Passwords are securely hashed before storage
+- Passwords are hashed before storage
 - Input validation is enforced
 - Password requirements should be configured according to your security needs
 
@@ -192,6 +182,8 @@ This project uses a comprehensive testing strategy:
 - **Unit Tests**: Service layer logic is tested in isolation using JUnit and Mockito. Dependencies like repositories, password encoders, and JWT services are mocked to ensure business logic is correct and robust.
 - **Integration Tests**: Controller endpoints are tested using Spring Boot's `@SpringBootTest` and `MockMvc`, with a real PostgreSQL database spun up by Testcontainers. This ensures the full stack (controller, service, repository, and database) works as expected.
 - **JWT Validation**: Integration tests verify that login returns a valid JWT token (correct format, not null).
+
+!!! [note] TestContainer tests are run in CICD Github Actions runners as well.
 
 ### Running the Test Suite
 
