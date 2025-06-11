@@ -126,6 +126,8 @@ Response:
 "jwt_token_string"
 ```
 
+Swagger docs at `http://localhost:8080/swagger-ui/index.html`
+
 ## Building and Running (without Docker)
 
 ### Build
