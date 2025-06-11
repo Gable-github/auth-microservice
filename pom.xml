@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.gab.auth</groupId>
 	<artifactId>authservice</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>auth-service</name>
 	<description>Authentication and authorization microservice for projects</description>
 	<url/>
